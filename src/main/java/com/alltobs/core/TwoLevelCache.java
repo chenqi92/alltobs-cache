@@ -21,12 +21,7 @@ public class TwoLevelCache implements Cache {
     final long ttl;
     final String keyPrefix;
 
-    public TwoLevelCache(@NonNull String name,
-                         @Nullable Cache firstLevelCache,
-                         @NonNull Cache secondLevelCache,
-                         boolean useFirstLevel,
-                         long ttl,
-                         @NonNull String keyPrefix) {
+    public TwoLevelCache(@NonNull String name, @Nullable Cache firstLevelCache, @NonNull Cache secondLevelCache, boolean useFirstLevel, long ttl, @NonNull String keyPrefix) {
         this.name = name;
         this.firstLevelCache = firstLevelCache;
         this.secondLevelCache = secondLevelCache;
@@ -70,7 +65,7 @@ public class TwoLevelCache implements Cache {
 
     @Override
     @Nullable
-    public <T> T get(@NonNull Object key, @NonNull Class<T> type) {
+    public <T> T get(@NonNull Object key, @Nullable Class<T> type) {
         Object realKey = wrapKey(key);
         if (useFirstLevel && firstLevelCache != null) {
             T value = firstLevelCache.get(realKey, type);
@@ -89,17 +84,21 @@ public class TwoLevelCache implements Cache {
     @Nullable
     public <T> T get(@NonNull Object key, @NonNull Callable<T> valueLoader) {
         Object realKey = wrapKey(key);
-        if (useFirstLevel && firstLevelCache != null) {
-            ValueWrapper vw = firstLevelCache.get(realKey);
-            if (vw != null) {
-                return (T) vw.get();
+        try {
+            if (useFirstLevel && firstLevelCache != null) {
+                T value = firstLevelCache.get(realKey, valueLoader);
+                if (value != null) {
+                    return value;
+                }
             }
+            T value = secondLevelCache.get(realKey, valueLoader);
+            if (value != null && useFirstLevel && firstLevelCache != null) {
+                firstLevelCache.put(realKey, value);
+            }
+            return value;
+        } catch (Exception e) {
+            throw new ValueRetrievalException(realKey, valueLoader, e);
         }
-        T value = secondLevelCache.get(realKey, valueLoader);
-        if (value != null && useFirstLevel && firstLevelCache != null) {
-            firstLevelCache.put(realKey, value);
-        }
-        return value;
     }
 
     @Override

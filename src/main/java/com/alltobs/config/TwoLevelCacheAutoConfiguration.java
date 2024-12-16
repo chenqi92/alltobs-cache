@@ -2,10 +2,12 @@ package com.alltobs.config;
 
 import com.alltobs.core.TwoLevelCacheManager;
 import com.alltobs.util.SpelKeyGenerator;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
@@ -38,9 +40,15 @@ public class TwoLevelCacheAutoConfiguration implements CachingConfigurer {
     private final CacheConfigurationProvider cacheConfigurationProvider;
 
     @Bean
+    @ConditionalOnMissingBean(CacheConfigurationProvider.class)
+    public CacheConfigurationProvider cacheConfigurationProvider() {
+        return new DefaultCacheConfigurationProvider(properties);
+    }
+
+    @Bean
     public CaffeineCacheManager caffeineCacheManager() {
         CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCaffeine(com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+        caffeineCacheManager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(1000));
         return caffeineCacheManager;
     }
